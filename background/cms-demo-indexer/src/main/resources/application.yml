@@ -1,0 +1,95 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres?currentSchema=lob_follower_service}
+    driverClassName: ${DB_DRIVER:org.postgresql.Driver}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      minimum-idle: ${DB_MIN_IDLE:3}
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
+      idle-timeout: ${DB_IDLE_TIMEOUT:30000}
+  jpa:
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+    hibernate:
+      ddl-auto: none
+    show:
+      sql: ${JPA_SHOW_SQL:false}
+  flyway:
+    locations: classpath:db/store/{vendor},classpath:db/migration/{vendor}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres?currentSchema=lob_follower_service}
+    user: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    schemas: ${DB_SCHEMA:lob_follower_service}
+    baselineOnMigrate: true
+    enabled: true
+    out-of-order: true
+    validateMigrationNaming: true
+  banner:
+    location: classpath:/banner.txt
+  web:
+    resources:
+      add-mappings: false
+  main:
+    allow-bean-definition-overriding: true
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev--preprod}
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  servlet:
+    encoding:
+      force: true
+  port: 9090
+
+cardano:
+  network: ${CARDANO_NETWORK:PREPROD}
+
+endpoints:
+  health:
+    enabled: ${HEALTH_ENABLED:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${WEB_EXPOSURE_INCLUDE:health,info,prometheus,metrics,scheduledtasks,flyway}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_ENDPOINT_SHOW_DETAILS:always}
+
+lob:
+  transaction:
+    metadata:
+      label: ${LOB_METADATA_LABEL:1448}
+  blockfrost:
+    url: ${LOB_BLOCKFROST_URL:https://cardano-preprod.blockfrost.io/api/v0}
+    api_key: ${LOB_BLOCKFROST_API_KEY}
+    project_id: ${LOB_BLOCKFROST_PROJECT_ID}
+
+cardano-client-lib:
+  backend:
+    type: ${CLI_BACKEND:BLOCKFROST}
+
+store:
+  cardano:
+    host: ${STORE_CARDANO_NODE_HOST:preprod-node.world.dev.cardano.org}
+    port: ${STORE_CARDANO_NODE_PORT:30000}
+    protocol-magic: ${STORE_CARDANO_NODE_PROTOCOL_MAGIC:1}
+    sync-start-blockhash: ${STORE_CARDANO_SYNC_START_BLOCK_HASH:274218b4101de63d02dd38fa0ff9be75a1c146667f4aa67fe8a04e462c8c55b1}
+    sync-start-slot: ${STORE_CARDANO_SYNC_START_SLOT:67868386}
+
+apiPrefix: ${API_PREFIX:/yaci-api}
+
+cors:
+  allowed:
+    origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+chain:
+  sync:
+    buffer: ${CHAIN_SYNC_BUFFER:120}
+    status:
+      check:
+        interval: ${CHAIN_SYNC_STATUS_CHECK_INTERVAL:PT30S}
+        initial:
+          delay: ${CHAIN_SYNC_STATUS_CHECK_INITIAL_DELAY:PT5S}

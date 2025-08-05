@@ -1,0 +1,4 @@
+requests
+pyyaml
+PyJWT
+bip_utils

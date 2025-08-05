@@ -1,0 +1,84 @@
+cardano:
+  network: ${CARDANO_NETWORK}
+blockfrost:
+  network: ${CARDANO_NETWORK}
+lob:
+  accounting_reporting_core.enabled: false
+  blockchain_publisher:
+    dispatcher:
+      consignment:
+        fixed_delay: PT10S
+        initial_delay: PT15S
+        pullBatchSize: 50
+    enabled: false
+  blockchain_reader:
+    enabled: true
+    lob_follower_base_url: ${FOLLOWER_APP_BASE_URL:http://localhost:9090/api/v1/}
+    lob_follower_indexer_url: ${FOLLOWER_APP_INDEXER_URL:http://localhost:9090/yaci-api/}
+  blockfrost:
+    url: ${BLOCKFROST_URL}
+    api_key: ${BLOCKFROST_API_KEY}
+    project_id: ${BLOCKFROST_API_KEY}
+  dispatching_strategy:
+    type: IMMEDIATE
+  l1:
+    transaction:
+      debug_store_output_tx: false
+      metadata_label: 1448
+  transaction:
+    submission:
+      sleep:
+        seconds: 5
+      timeout:
+        in:
+          seconds: 300
+#lob_owner_account_mnemonic: ${LOB_OWNER_ACCOUNT_MNEMONIC}
+server:
+  port: 8088
+spring:
+  application:
+    name: ims-demo-app
+  datasource:
+    url: ${CMS_APP_DB_URL}
+    username: ${CMS_APP_DB_USERNAME}
+    password: ${CMS_APP_DB_PASSWORD}
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 1
+    enabled: true
+    locations: classpath:db/migration
+    schemas: public
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        envers:
+          auto_register_listeners: true
+          default_schema: public
+          revision_field_name: rev
+          revision_type_field_name: revtype
+        format_sql: true
+    show-sql: false
+  main:
+    allow-bean-definition-overriding: true
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI}
+            token-url: ${KEYCLOAK_TOKEN_URL}
+            authorization-url: ${KEYCLOAK_AUTHORIZATION_URL}
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID}
+            provider: keycloak
+logging:
+  level:
+    root: INFO
+    org.cardanofoundation: INFO
+    org.springframework: INFO
+    org.hibernate: INFO
+    tech.edgx: INFO

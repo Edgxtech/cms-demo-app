@@ -1,0 +1,172 @@
+services:
+  postgres:
+    image: postgres:16.3
+    command: -p 5433
+    environment:
+      - POSTGRES_USER=${DATABASE_USERNAME}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_PORT=5433
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./config/postgres-init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5433"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${DATABASE_NAME} -p 5433 -h localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cms
+
+  cardano-node:
+    image: ghcr.io/intersectmbo/cardano-node:10.1.4
+    ports:
+      - "12798:12798"
+      - "3001:3001"
+    command: [
+      "run",
+      "--config", "/config/config.json",
+      "--database-path", "/data/db",
+      "--socket-path", "/ipc/node.socket",
+      "--topology", "/config/topology.json"
+    ]
+    volumes:
+      - ./background/cnode/config/network/${CARDANO_NETWORK:-mainnet}/cardano-node:/config
+      - ./background/cnode/config/network/${CARDANO_NETWORK:-mainnet}/genesis:/genesis
+      - ./background/cnode:/data
+      - node-ipc:/ipc
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "400k"
+        max-file: "20"
+    networks:
+      - cms
+
+  ogmios:
+    image: cardanosolutions/ogmios:latest
+    restart: on-failure
+    command: [
+      "--host", "0.0.0.0",
+      "--node-socket", "/ipc/node.socket",
+      "--node-config", "/config/cardano-node/config.json"
+    ]
+    volumes:
+      - ./background/cnode/config/network/${CARDANO_NETWORK:-mainnet}:/config
+      - node-ipc:/ipc
+    ports:
+      - "${OGMIOS_PORT:-1337}:1337"
+    depends_on:
+      cardano-node:
+        condition: service_started
+    networks:
+      - cms
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.1
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME}
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_HTTP_PORT=${KEYCLOAK_PORT}
+      - KC_DB=${KEYCLOAK_DB}
+      - KC_DB_URL=${KEYCLOAK_DB_URL}
+      - KC_DB_USERNAME=${DATABASE_USERNAME}
+      - KC_DB_PASSWORD=${DATABASE_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
+      - "${KEYCLOAK_ADMIN_PORT}:${KEYCLOAK_ADMIN_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: start-dev --health-enabled=true
+    networks:
+      - cms
+
+  indexer:
+    image: edgxtech/cms-demo-indexer
+    ports:
+      - "${FOLLOWER_APP_PORT}:${FOLLOWER_APP_PORT}"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev--preprod
+      - DB_URL=${FOLLOWER_APP_DB_URL}
+      - DB_USERNAME=${DATABASE_USERNAME}
+      - DB_PASSWORD=${DATABASE_PASSWORD}
+      - STORE_CARDANO_PROTOCOL_MAGIC=${CARDANO_PROTOCOL_MAGIC}
+      - STORE_CARDANO_NODE_HOST=${CARDANO_NODE_HOST}
+      - STORE_CARDANO_NODE_PORT=${CARDANO_NODE_PORT}
+      - STORE_CARDANO_NODE_PROTOCOL_MAGIC=${CARDANO_PROTOCOL_MAGIC}
+      - STORE_CARDANO_SYNC_START_BLOCK_HASH=e4131ffc9413bbd857fc1d687ff30efc8f1d1b248510287e69cf324be06f5e31
+      - STORE_CARDANO_SYNC_START_SLOT=97560198
+      - LOB_METADATA_LABEL=1448
+      - LOB_TRANSACTION_METADATA_LABEL=1448
+      - LOB_BLOCKFROST_URL=${BLOCKFROST_URL}
+      - LOB_BLOCKFROST_API_KEY=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKFROST_PROJECT_ID=${BLOCKFROST_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cms
+
+  app:
+    image: edgxtech/cms-demo-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=${CMS_APP_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD}
+      - LOB_BLOCKFROST_URL=${BLOCKFROST_URL}
+      - LOB_BLOCKFROST_API_KEY=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKFROST_PROJECT_ID=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKCHAIN_READER_LOB_FOLLOWER_BASE_URL=${FOLLOWER_APP_BASE_URL}
+      - LOB_BLOCKCHAIN_READER_LOB_FOLLOWER_INDEXER_URL=${FOLLOWER_APP_INDEXER_URL}
+      - LOB_OWNER_ACCOUNT_MNEMONIC=${LOB_OWNER_ACCOUNT_MNEMONIC}
+      - CARDANO_NETWORK=${CARDANO_NETWORK}
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_TOKEN_URL=${KEYCLOAK_TOKEN_URL}
+      - KEYCLOAK_AUTHORIZATION_URL=${KEYCLOAK_AUTHORIZATION_URL}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "${CMS_APP_PORT}:${CMS_APP_PORT}"
+    depends_on:
+      keycloak:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - cms
+
+  # Once-off and only for demo purposes
+  setup-accounts:
+    image: edgxtech/python-yaml-env
+    volumes:
+      - ./scripts:/scripts
+      - .:/app
+    working_dir: /scripts
+    command: ["python", "setup_accounts.py"]
+    environment:
+      - KEYCLOAK_URL=http://keycloak:${KEYCLOAK_PORT}
+      - KEYCLOAK_CLIENT_ID=cms-demo-app
+      - ORG_NAME=${ORG_NAME}
+      - CMS_BASE_URL=${CMS_BASE_URL}
+      - CMS_APP_PORT=${CMS_APP_PORT}
+    depends_on:
+      keycloak:
+        condition: service_started
+      app:
+        condition: service_started
+    networks:
+      - cms
+
+volumes:
+  postgres-data:
+  node-ipc:
+
+networks:
+  cms:
+    name: cms-net
