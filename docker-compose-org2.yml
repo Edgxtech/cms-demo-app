@@ -1,0 +1,98 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.1
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME}
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_HTTP_PORT=${KEYCLOAK_PORT}
+      - KC_DB=${KEYCLOAK_DB}
+      - KC_DB_URL=${KEYCLOAK_DB_URL}
+      - KC_DB_USERNAME=${DATABASE_USERNAME}
+      - KC_DB_PASSWORD=${DATABASE_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
+    command: start-dev
+    networks:
+      - cms
+
+  indexer:
+    image: edgxtech/cms-demo-indexer
+    ports:
+      - "${FOLLOWER_APP_PORT}:${FOLLOWER_APP_PORT}"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev--preprod
+      - SERVER_PORT=${FOLLOWER_APP_PORT}
+      - DB_URL=${FOLLOWER_APP_DB_URL}
+      - DB_USERNAME=${DATABASE_USERNAME}
+      - DB_PASSWORD=${DATABASE_PASSWORD}
+      - STORE_CARDANO_PROTOCOL_MAGIC=${CARDANO_PROTOCOL_MAGIC}
+      - STORE_CARDANO_NODE_HOST=${CARDANO_NODE_HOST}
+      - STORE_CARDANO_NODE_PORT=${CARDANO_NODE_PORT}
+      - STORE_CARDANO_NODE_PROTOCOL_MAGIC=${CARDANO_PROTOCOL_MAGIC}
+      - STORE_CARDANO_SYNC_START_BLOCK_HASH=e4131ffc9413bbd857fc1d687ff30efc8f1d1b248510287e69cf324be06f5e31
+      - STORE_CARDANO_SYNC_START_SLOT=97560198
+      - LOB_METADATA_LABEL=1448
+      - LOB_TRANSACTION_METADATA_LABEL=1448
+      - LOB_BLOCKFROST_URL=${BLOCKFROST_URL}
+      - LOB_BLOCKFROST_API_KEY=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKFROST_PROJECT_ID=${BLOCKFROST_API_KEY}
+    networks:
+      - cms
+
+  app:
+    image: edgxtech/cms-demo-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - SERVER_PORT=${CMS_APP_PORT}
+      - SPRING_DATASOURCE_URL=${CMS_APP_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD}
+      - LOB_BLOCKFROST_URL=${BLOCKFROST_URL}
+      - LOB_BLOCKFROST_API_KEY=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKFROST_PROJECT_ID=${BLOCKFROST_API_KEY}
+      - LOB_BLOCKCHAIN_READER_LOB_FOLLOWER_BASE_URL=${FOLLOWER_APP_BASE_URL}
+      - LOB_BLOCKCHAIN_READER_LOB_FOLLOWER_INDEXER_URL=${FOLLOWER_APP_INDEXER_URL}
+      - LOB_OWNER_ACCOUNT_MNEMONIC=${LOB_OWNER_ACCOUNT_MNEMONIC}
+      - CARDANO_NETWORK=${CARDANO_NETWORK}
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_TOKEN_URL=${KEYCLOAK_TOKEN_URL}
+      - KEYCLOAK_AUTHORIZATION_URL=${KEYCLOAK_AUTHORIZATION_URL}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "${CMS_APP_PORT}:${CMS_APP_PORT}"
+    depends_on:
+      keycloak:
+        condition: service_started
+    volumes:
+      - .:/app
+    networks:
+      - cms
+
+  # Once-off and only for demo purposes
+  setup-accounts:
+    image: edgxtech/python-yaml-env
+    volumes:
+      - ./scripts:/scripts
+      - .:/app
+    working_dir: /scripts
+    command: [ "python", "setup_accounts.py" ]
+    environment:
+      - KEYCLOAK_URL=http://keycloak:${KEYCLOAK_PORT}
+      - KEYCLOAK_CLIENT_ID=cms-demo-app
+      - ORG_NAME=${ORG_NAME}
+      - CMS_BASE_URL=${CMS_BASE_URL}
+      - CMS_APP_PORT=${CMS_APP_PORT}
+    depends_on:
+      keycloak:
+        condition: service_started
+    networks:
+      - cms
+
+volumes:
+  postgres-data:
+  node-ipc:
+
+networks:
+  cms:
+    name: cms-net
+    external: true
