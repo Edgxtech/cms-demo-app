@@ -12,7 +12,7 @@ Uses;
 -   Cardano Foundation [Reeve - Ledger on Blockchain Platform](https://github.com/cardano-foundation/cf-reeve-platform) for sync of data from off and on-chain (extended version)
 -   Bloxbean [Yaci](https://github.com/bloxbean/yaci) JVM based Cardano mini-protocols library, used as part of Reeve
 -   Bloxbean [YaciStore](https://github.com/bloxbean/yaci-store) general purpose indexer, used as part of Reeve
--   Blockfrost [Blockfrost](https://blockfrost.io) Cardano data API, only for txOutput resolution and chain sync checking
+-   [Blockfrost](https://blockfrost.io) Cardano data API, only for txOutput resolution and chain sync checking
 
 ## Quickstart
 
