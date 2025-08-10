@@ -61,7 +61,6 @@ class ConsignmentMetadataDeserialiserService(
         val goodsMap = consignmentMap["goods"] as? Map<String, Any>
             ?: throw IllegalArgumentException("Missing 'goods' in consignment")
 
-        // Parse dispatched_at from metadata
         val dispatchedAt = consignmentMap["dispatched_at"]?.let { dispatchedAtStr ->
             val parsed = LocalDateTime.parse(dispatchedAtStr as String, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             parsed
@@ -109,7 +108,6 @@ class ConsignmentMetadataDeserialiserService(
             currencyId = (receiverMap["currency_id"] as? String) ?: ""
         }
 
-        //
         val idControl = ConsignmentEntity.Companion.idControl(sender.id, receiver.id, dispatchedAt)
         val latestConsignment = consignmentRepository.findLatestByIdControl(idControl)
         val ver = latestConsignment?.let { it.ver + 1 } ?: 1L

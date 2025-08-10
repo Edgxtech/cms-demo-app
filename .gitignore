@@ -45,6 +45,7 @@ background/cnode/db/
 maven_repo/
 archive/
 backups/
+project-data
 *.md
 !README.md
 *.env

@@ -7,9 +7,9 @@ import java.time.LocalDateTime
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Consignment(
-    val id: String? = null, // Nullable for server-side generation
+    val id: String? = null,
     val idControl: String? = null,
-    val ver: Long? = null, // Add ver field
+    val ver: Long? = null,
     val goods: Map<String, Int>,
     val sender: Organisation?,
     val receiver: Organisation?,
@@ -19,5 +19,5 @@ data class Consignment(
     val longitude: Double? = null,
     val createdAt: LocalDateTime? = null,
     val updatedAt: LocalDateTime? = null,
-    val dispatchedAt: LocalDateTime? = null // New field
+    val dispatchedAt: LocalDateTime? = null
 )
